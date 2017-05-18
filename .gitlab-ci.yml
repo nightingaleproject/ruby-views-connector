@@ -11,7 +11,3 @@ rake:
 rubocop:
   script:
     - bundle exec rubocop
-
-brakeman:
-  script:
-    - bundle exec brakeman
