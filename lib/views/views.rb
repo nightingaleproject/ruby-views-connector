@@ -187,44 +187,36 @@ end
 def parse_response(response)
   return '' unless response
   doc = Nokogiri::XML(response)
-  messages = {}
+  messages = []
   begin
     list = doc.xpath('//WebMMDS:ValidationData', WebMMDS: 'WebMMDS')
-    list&.each_with_index do |message, i|
-      type = message.at_xpath('@type')
-      field = message.at_xpath('@field')
-      term = message.at_xpath('./WebMMDS:Term', WebMMDS: 'WebMMDS')
-      case type&.inner_text
+    list&.each do |message|
+      type = message.at_xpath('@type')&.text
+      field = message.at_xpath('@field')&.text
+      term = message.at_xpath('./WebMMDS:Term', WebMMDS: 'WebMMDS')&.text
+      case type
       when 'Information'
-        msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
-        composed_message = 'Information from web service: Message: ' << msg.to_s if msg
-        messages[i] = 'Error occured running VIEWS validation: ' + msg&.text.to_s
+        if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
+          messages << { type: type, message: 'Error occured running VIEWS validation: ' + msg.text.to_s }
+        end
       when 'Spelling'
-        suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
-        composed_message = 'Spelling Suggestions: For field: ' << field << ', Term: ' << term << ', Suggestions: '
-        composed_message << suggestions.map(&:text).join(',')
-        messages[i] = composed_message
+        if suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
+          messages << { type: type, field: field, term: term, message: "VIEWS detected an issue with the spelling of '#{term}'", suggestions: suggestions.map(&:text) }
+        end
       when 'RareWord'
         suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
         msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
-        # probably a better way to do this, just getting these in an array
-        # so I can use join() on it
-        suggestion_arr = []
-        suggestions.each do |s|
-          suggestion_arr << s.text
+        if suggestions && msg
+          messages << { type: type, field: field, term: term, message: msg.text, suggestions: suggestions.map(&:text) }
         end
-        composed_message = 'Rare Word: For field: ' << field << ', Term: ' << term << ', Message: ' << msg << ', Suggestions: '
-        suggestion_message = suggestion_arr.join(',')
-        composed_message << suggestion_message
-        messages[i] = composed_message
       when 'Surveillance'
-        msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
-        composed_message = 'Surveillance Word: For field: ' << field << ', Term: ' << term << ', Message: ' << msg
-        messages[i] = composed_message
+        if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
+          messages << { type: type, field: field, term: term, message: msg.text }
+        end
       end
     end
   rescue StandardError => err
-    messages[0] = 'Unable to run VIEWS validation, error occured.  Contact System Administrator.'
+    messages << { message: 'Unable to run VIEWS validation, error occured.  Contact System Administrator.' }
     raise
   end
 
