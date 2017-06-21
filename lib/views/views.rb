@@ -209,7 +209,7 @@ def parse_response(response)
         if suggestions && msg
           messages << { type: type, field: field, term: term, message: msg.text, suggestions: suggestions.map(&:text) }
         end
-      when 'Surveillance'
+      when 'Surveillance', 'IllDefined'
         if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
           messages << { type: type, field: field, term: term, message: msg.text }
         end
