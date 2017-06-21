@@ -203,15 +203,21 @@ def parse_response(response)
         if suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
           messages << { type: type, field: field, term: term, message: "VIEWS detected an issue with the spelling of '#{term}'", suggestions: suggestions.map(&:text) }
         end
-      when 'RareWord'
-        suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
+      when 'RareWord', 'RareCause'
         msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
-        if suggestions && msg
+        suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
+        if msg && suggestions
           messages << { type: type, field: field, term: term, message: msg.text, suggestions: suggestions.map(&:text) }
         end
       when 'Surveillance', 'IllDefined'
         if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
           messages << { type: type, field: field, term: term, message: msg.text }
+        end
+      when 'Abbreviation'
+        msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
+        suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
+        if msg && suggestions
+          messages << { type: type, field: field, term: term, message: msg.text, suggestions: suggestions.map(&:text) }
         end
       end
     end
