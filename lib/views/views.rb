@@ -2,33 +2,13 @@
 require 'views/version'
 require 'nokogiri'
 require 'savon'
-require 'logger'
 
 # the Views module
 module Views
-  class << self
-    attr_accessor :configuration
-  end
 
-  def self.configure
-    self.configuration ||= Configuration.new
-    yield(configuration)
-  end
-
-  # Configuration for the class
-  class Configuration
-    attr_accessor :wsdl, :ssl_verify_mode, :soap_version, :log
-    attr_accessor :logger
-
-    def initialize
-      @wsdl = 'https://wwwn.cdc.gov/view2_admin/VIEWS/ValidationService.svc?wsdl'
-      @ssl_verify_mode = :none
-      @soap_version = 2
-      @log = false
-      @logger = Logger.new($stdout)
-      @logger.level = Logger::ERROR
-    end
-  end
+  WSDL = 'https://wwwn.cdc.gov/view2_admin/VIEWS/ValidationService.svc?wsdl'
+  SSL_VERIFY_MODE = :none
+  SOAP_VERSION = 2
 
   def self.validate(cause_of_death_line1: '',
                     cause_of_death_duration1: '',
@@ -53,13 +33,13 @@ module Views
                     injury_at_work: '')
 
     # initialize Savon (SOAP WS) client
-    client = Savon.client(wsdl: Views.configuration.wsdl,
-                          ssl_verify_mode: configuration.ssl_verify_mode,
-                          soap_version: configuration.soap_version,
+    client = Savon.client(wsdl: Views::WSDL,
+                          ssl_verify_mode: Views::SSL_VERIFY_MODE,
+                          soap_version: Views::SOAP_VERSION,
                           headers: { 'wsa:To' => 'https://wwwn.cdc.gov/view2_admin/VIEWS/ValidationService.svc' },
                           use_wsa_headers: true,
                           pretty_print_xml: true,
-                          log: configuration.log)
+                          log: false)
 
     # create array of values to create
 
@@ -110,8 +90,6 @@ TermCasing=\"UPPER\"&gt;\n"
     # activity code is also some kind of number without documentation
     # TODO:  Add if needed
 
-    # @logger.debug("message so far: " + message)
-
     message << '&lt;/Certificate&gt;
 </input>'
 
@@ -121,7 +99,6 @@ TermCasing=\"UPPER\"&gt;\n"
                                       attributes: { 'xmlns:ns2' => 'http://schemas.microsoft.com/2003/10/Serialization/',
                                                     'xmlns' => 'http://tempuri.org/' })
 
-    Views.configuration.logger.debug('full savon response: ' + response&.to_s)
     parse_response(response.body[:validate_response][:validate_result].to_s)
   end
 end
@@ -130,7 +107,6 @@ private
 
 def add(message, tag, value)
   if value
-    Views.configuration.logger.debug(tag + ': ' + value.to_s)
     message << '&lt;' << tag << '&gt;' << value << '&lt;/' << tag << "&gt;\n" if value && value != ''
   end
 end
@@ -139,12 +115,12 @@ def parse_date(d, type)
   if d
     case type
     when :year
-      response = d&.year&.to_s
+      response = d&.year.to_s
     when :month
-      response = d&.month&.to_s
+      response = d&.month.to_s
       response = response.rjust(2, '0') if response
     when :day
-      response = d&.day&.to_s
+      response = d&.day.to_s
       response = response.rjust(2, '0') if response
     end
     response
@@ -154,7 +130,6 @@ end
 def parse_hour(time)
   response = time&.hour.to_s if time
   response = response.ljust(4, '0') if response
-  Views.configuration.logger.debug('response: ' + response.to_s)
   response
 end
 
@@ -210,38 +185,25 @@ def translate_manner_of_death(val)
 end
 
 def parse_response(response)
-  Views.configuration.logger.debug('response' + response&.to_s)
   return '' unless response
   doc = Nokogiri::XML(response)
   messages = {}
   begin
     list = doc.xpath('//WebMMDS:ValidationData', WebMMDS: 'WebMMDS')
-    Views.configuration.logger.info('got list: ' + list&.to_s)
     list&.each_with_index do |message, i|
       type = message.at_xpath('@type')
-      Views.configuration.logger.info('type: ' + type&.to_s)
       field = message.at_xpath('@field')
-      Views.configuration.logger.info('field ' + field&.to_s)
       term = message.at_xpath('./WebMMDS:Term', WebMMDS: 'WebMMDS')
-      Views.configuration.logger.info('term: ' + term&.text)
       case type&.inner_text
       when 'Information'
         msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
         composed_message = 'Information from web service: Message: ' << msg.to_s if msg
-        Views.configuration.logger.error 'Error occured while contacting VIEWS: ' + composed_message&.to_s if composed_message
-        messages[i] = 'Unable to run VIEWS validation, error occured.  Contact System Administrator.'
+        messages[i] = 'Error occured running VIEWS validation: ' + msg&.text.to_s
       when 'Spelling'
         suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
         composed_message = 'Spelling Suggestions: For field: ' << field << ', Term: ' << term << ', Suggestions: '
-        # probably a better way to do this, just getting the suggestions in an array
-        # so I can use join() on it
-        suggestion_arr = []
-        suggestions.each do |s|
-          suggestion_arr << s.text
-        end
-        composed_message << suggestion_arr.join(',')
+        composed_message << suggestions.map(&:text).join(',')
         messages[i] = composed_message
-        Views.configuration.logger.info('composed_message ' + composed_message&.to_s)
       when 'RareWord'
         suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
         msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
@@ -262,7 +224,6 @@ def parse_response(response)
       end
     end
   rescue StandardError => err
-    Views.configuration.logger.error 'Error occured while contacting VIEWS: ' + err.to_s
     messages[0] = 'Unable to run VIEWS validation, error occured.  Contact System Administrator.'
     raise
   end

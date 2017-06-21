@@ -2,14 +2,6 @@
 require_relative '../lib/views/views'
 
 describe Views do
-  before :each do
-    Views.configure do |config|
-      config.log = true
-      logger = Logger.new($stdout)
-      logger.level = Logger::INFO
-      config.logger = logger
-    end
-  end
 
   describe '#validate' do
     context 'provide some valid and error-free data' do
