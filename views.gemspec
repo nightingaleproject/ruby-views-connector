@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = 'summary'
   spec.description   = 'desc'
-  spec.homepage      = 'TODO: Put your gem\'s website or public repo URL here.'
+  spec.homepage      = 'https://github.com/nightingaleproject/views_connector'
   spec.license       = 'MIT'
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the
@@ -36,8 +36,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.2'
   spec.add_development_dependency 'savon', '~> 2.0'
-  spec.add_development_dependency 'nokogiri', '1.6.8.1'
+  spec.add_development_dependency 'nokogiri', '1.8.2'
   
   spec.add_runtime_dependency 'savon', '~> 2.0'
-  spec.add_runtime_dependency 'nokogiri', '1.6.8.1'
+  spec.add_runtime_dependency 'nokogiri', '1.8.2'
 end
