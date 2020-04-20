@@ -5,8 +5,7 @@ require 'savon'
 
 # the Views module
 module Views
-
-  WSDL = 'https://wwwn.cdc.gov/view2_admin/VIEWS/ValidationService.svc?wsdl'
+  WSDL = 'https://wwwn.cdc.gov/view2_admin/VIEWS/ValidationService.svc?wsdl'.freeze
   SSL_VERIFY_MODE = :none
   SOAP_VERSION = 2
 
@@ -106,25 +105,25 @@ end
 private
 
 def add(message, tag, value)
-  if value
-    message << '&lt;' << tag << '&gt;' << value << '&lt;/' << tag << "&gt;\n" if value && value != ''
-  end
+  return unless value
+
+  message << '&lt;' << tag << '&gt;' << value << '&lt;/' << tag << "&gt;\n" if value && value != ''
 end
 
-def parse_date(d, type)
-  if d
-    case type
-    when :year
-      response = d&.year.to_s
-    when :month
-      response = d&.month.to_s
-      response = response.rjust(2, '0') if response
-    when :day
-      response = d&.day.to_s
-      response = response.rjust(2, '0') if response
-    end
-    response
+def parse_date(date, type)
+  return unless date
+
+  case type
+  when :year
+    response = date&.year.to_s
+  when :month
+    response = date&.month.to_s
+    response = response.rjust(2, '0') if response
+  when :day
+    response = date&.day.to_s
+    response = response.rjust(2, '0') if response
   end
+  response
 end
 
 def parse_hour(time)
@@ -134,13 +133,13 @@ def parse_hour(time)
 end
 
 def calculate_age(dob)
-  if dob
-    now = Time.now.utc.to_date
-    response = now.year - dob.year - ((now.month > dob.month || (now.month == dob.month && now.day >= dob.day)) ? 0 : 1)
-    # age must be no more than 130
-    response = 130 if response > 130
-    response.to_s.rjust(3, '0')
-  end
+  return unless dob
+
+  now = Time.now.utc.to_date
+  response = now.year - dob.year - (now.month > dob.month || (now.month == dob.month && now.day >= dob.day) ? 0 : 1)
+  # age must be no more than 130
+  response = 130 if response > 130
+  response.to_s.rjust(3, '0')
 end
 
 def translate_tobacco(tobacco_use)
@@ -184,8 +183,10 @@ def translate_manner_of_death(val)
   end
 end
 
+# rubocop:disable Metrics/BlockLength
 def parse_response(response)
   return '' unless response
+
   doc = Nokogiri::XML(response)
   messages = []
   begin
@@ -196,11 +197,11 @@ def parse_response(response)
       term = message.at_xpath('./WebMMDS:Term', WebMMDS: 'WebMMDS')&.text
       case type
       when 'Information'
-        if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
+        if (msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS'))
           messages << { type: type, message: 'Error occured running VIEWS validation: ' + msg.text.to_s }
         end
       when 'Spelling'
-        if suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS')
+        if (suggestions = message.xpath('./WebMMDS:Suggestion', WebMMDS: 'WebMMDS'))
           messages << { type: type, field: field, term: term, message: "VIEWS detected an issue with the spelling of '#{term}'", suggestions: suggestions.map(&:text) }
         end
       when 'RareWord', 'RareCause'
@@ -210,7 +211,7 @@ def parse_response(response)
           messages << { type: type, field: field, term: term, message: msg.text, suggestions: suggestions.map(&:text) }
         end
       when 'Surveillance', 'IllDefined'
-        if msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS')
+        if (msg = message.at_xpath('./WebMMDS:Message[@level=3]', WebMMDS: 'WebMMDS'))
           messages << { type: type, field: field, term: term, message: msg.text }
         end
       when 'Abbreviation'
@@ -221,7 +222,7 @@ def parse_response(response)
         end
       end
     end
-  rescue StandardError => err
+  rescue StandardError
     messages << { message: 'Unable to run VIEWS validation, error occured.  Contact System Administrator.' }
     raise
   end
@@ -231,3 +232,4 @@ def parse_response(response)
 
   messages
 end
+# rubocop:enable Metrics/BlockLength

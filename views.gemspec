@@ -1,5 +1,4 @@
-# coding: utf-8
-lib = File.expand_path('../lib', __FILE__)
+lib = File.expand_path('lib', __dir__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'views/version'
 
@@ -33,11 +32,10 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_development_dependency 'bundler'
-  spec.add_development_dependency 'rake', '~> 10.0'
-  spec.add_development_dependency 'rspec', '~> 3.2'
-  spec.add_development_dependency 'savon', '~> 2.0'
-  spec.add_development_dependency 'nokogiri', '~> 1.10.4'
+  spec.add_development_dependency 'rake'
+  spec.add_development_dependency 'rspec'
+  spec.add_development_dependency 'rubocop'
 
-  spec.add_runtime_dependency 'savon', '~> 2.0'
   spec.add_runtime_dependency 'nokogiri', '~> 1.10.4'
+  spec.add_runtime_dependency 'savon', '~> 2.0'
 end
