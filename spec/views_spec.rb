@@ -2,7 +2,6 @@
 require_relative '../lib/views/views'
 
 describe Views do
-
   describe '#validate' do
     context 'provide some valid and error-free data' do
       it 'returns empty array' do
